@@ -1,0 +1,77 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Root dark canvas — never let browser default white bleed through */
+  :root {
+    color-scheme: dark;
+    background-color: #09090b;
+    color: #fafafa;
+  }
+
+  html,
+  body {
+    @apply min-h-screen bg-zinc-950 text-zinc-50 antialiased;
+    font-family: Inter, system-ui, sans-serif;
+  }
+
+  /* Global border colour reset (Tailwind v3 compatible) */
+  *,
+  ::before,
+  ::after {
+    border-color: #27272a;
+  }
+
+  /* ── Form elements: force dark appearance in ALL browsers ── */
+  input,
+  textarea,
+  select {
+    /* Solid dark background — no transparency that could show white */
+    background-color: #09090b;
+    color: #f4f4f5;
+    border-color: #3f3f46;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: #52525b;
+  }
+
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+    border-color: rgb(245 158 11 / 0.5);
+    box-shadow: 0 0 0 2px rgb(245 158 11 / 0.15);
+  }
+
+  /* Checkbox keeps native look */
+  input[type='checkbox'] {
+    -webkit-appearance: auto;
+    appearance: auto;
+    background-color: transparent;
+  }
+
+  /* Remove browser autofill yellow/white flash */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #09090b inset;
+    -webkit-text-fill-color: #f4f4f5;
+    caret-color: #f4f4f5;
+    transition: background-color 5000s ease-in-out 0s;
+  }
+
+  /* Table defaults */
+  table {
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    border-color: #27272a;
+  }
+}
