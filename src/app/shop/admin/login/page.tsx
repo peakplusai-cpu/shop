@@ -6,7 +6,10 @@ import { StorefrontAdminLoginForm } from '@/components/storefront-admin-login-fo
 import {
   isStorefrontAdminAuthenticated,
   isStorefrontAdminEnabled,
+  isStorefrontAdminMfaRequired,
 } from '@/lib/storefront-admin-session';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Shop Admin',
@@ -28,12 +31,13 @@ export default async function ShopAdminLoginPage() {
 
         {!enabled ? (
           <p className="mt-6 text-sm font-light leading-6 text-stone-500">
-            Add <code className="text-zinc-400">STOREFRONT_ADMIN_PASSWORD=your-password</code> to{' '}
-            <code className="text-zinc-400">.env.local</code>, restart{' '}
-            <code className="text-zinc-400">npm run dev</code>, then refresh.
+            Configure a password of at least 16 characters, a dedicated admin
+            session secret, and a TOTP secret in the deployment environment.
           </p>
         ) : (
-          <StorefrontAdminLoginForm />
+          <StorefrontAdminLoginForm
+            mfaRequired={isStorefrontAdminMfaRequired()}
+          />
         )}
 
         <Link

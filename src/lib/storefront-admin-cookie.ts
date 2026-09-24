@@ -1,13 +1,10 @@
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export const STOREFRONT_ADMIN_COOKIE = 'storefront_admin_session';
+const MAX_SESSION_AGE_MS = 12 * 60 * 60 * 1000;
 
 function sessionSecret(): string | null {
-  return (
-    process.env.STOREFRONT_ADMIN_SECRET?.trim() ||
-    process.env.STOREFRONT_SUPABASE_SERVICE_ROLE_KEY?.trim() ||
-    null
-  );
+  return process.env.STOREFRONT_ADMIN_SECRET?.trim() || null;
 }
 
 function signToken(payload: string): string | null {
@@ -21,8 +18,22 @@ export function verifyStorefrontAdminCookie(
 ): boolean {
   if (!cookieValue) return false;
 
-  const [token, signature] = cookieValue.split('.');
-  if (!token || !signature || !/^[a-f0-9]+$/i.test(token)) return false;
+  const [token, signature, extra] = cookieValue.split('.');
+  if (
+    !token ||
+    !signature ||
+    extra ||
+    !/^v1_\d{13}_[a-f0-9]{48}$/i.test(token) ||
+    !/^[a-f0-9]{64}$/i.test(signature)
+  ) {
+    return false;
+  }
+
+  const issuedAt = Number(token.split('_')[1]);
+  const age = Date.now() - issuedAt;
+  if (!Number.isFinite(issuedAt) || age < -60_000 || age > MAX_SESSION_AGE_MS) {
+    return false;
+  }
 
   const expected = signToken(token);
   if (!expected) return false;
@@ -54,7 +65,16 @@ export function isStorefrontAdminIpAllowed(
 }
 
 export function readClientIp(request: Request): string | null {
+  const vercelForwarded = request.headers.get('x-vercel-forwarded-for');
+  if (vercelForwarded) {
+    return vercelForwarded.split(',')[0]?.trim() || null;
+  }
+
+  const realIp = request.headers.get('x-real-ip')?.trim();
+  if (realIp) return realIp;
+
+  // Generic trusted reverse proxies append their observed peer to the right.
+  // Deployments must strip client-supplied forwarding headers at the edge.
   const forwarded = request.headers.get('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0]?.trim() || null;
-  return request.headers.get('x-real-ip')?.trim() || null;
+  return forwarded?.split(',').at(-1)?.trim() || null;
 }

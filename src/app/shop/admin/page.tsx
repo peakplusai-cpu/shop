@@ -6,6 +6,8 @@ import { deleteStorefrontProduct, logoutStorefrontAdmin } from '@/app/shop/admin
 import { isStorefrontAdminAuthenticated } from '@/lib/storefront-admin-session';
 import { createStorefrontAdminClient } from '@/lib/supabase/storefront-admin';
 
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: 'Products — Shop Admin',
   robots: { index: false, follow: false },

@@ -4,7 +4,11 @@ import { useState } from 'react';
 
 import { loginStorefrontAdmin } from '@/app/shop/admin/actions';
 
-export function StorefrontAdminLoginForm() {
+export function StorefrontAdminLoginForm({
+  mfaRequired,
+}: {
+  mfaRequired: boolean;
+}) {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -27,6 +31,19 @@ export function StorefrontAdminLoginForm() {
         placeholder="Admin password"
         className="w-full border-[0.5px] border-zinc-800 bg-black px-3 py-2.5 text-sm outline-none focus:border-[#D4AF37]/50"
       />
+      {mfaRequired && (
+        <input
+          type="text"
+          name="totp"
+          required
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]{6}"
+          maxLength={6}
+          placeholder="6-digit authentication code"
+          className="w-full border-[0.5px] border-zinc-800 bg-black px-3 py-2.5 text-sm outline-none focus:border-[#D4AF37]/50"
+        />
+      )}
       {error && <p className="text-sm text-red-400">{error}</p>}
       <button
         type="submit"

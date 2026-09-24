@@ -1,4 +1,6 @@
 import Image from 'next/image';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 
 import { ExpressCheckoutButton } from '@/components/express-checkout-button';
 import { FadeIn } from '@/components/fade-in';
@@ -28,6 +30,14 @@ export function ProductLanding({ product, preview }: ProductLandingProps) {
           本地預覽模式（尚未連資料庫）· 畫面已可給客戶看 · 真實收款再設定即可
         </p>
       )}
+
+      <Link
+        href="/shop"
+        className="absolute left-5 top-5 z-20 inline-flex items-center gap-2 border-[0.5px] border-white/10 bg-black/60 px-4 py-2 text-[9px] uppercase tracking-[0.22em] text-zinc-400 backdrop-blur transition hover:border-[#D4AF37]/50 hover:text-[#D4AF37] sm:left-8 sm:top-8"
+      >
+        <ArrowLeft className="h-3 w-3" />
+        All products
+      </Link>
 
       <div className="relative mx-auto grid min-h-screen max-w-[1500px] lg:grid-cols-[1.15fr_0.85fr]">
         <section className="relative flex min-h-[58vh] items-center justify-center border-b-[0.5px] border-[#D4AF37]/25 p-5 sm:p-10 lg:min-h-screen lg:border-b-0 lg:border-r-[0.5px] lg:p-16">
@@ -75,7 +85,7 @@ export function ProductLanding({ product, preview }: ProductLandingProps) {
             </div>
             {!preview && (
               <p className="mt-8 text-center text-[10px] text-zinc-700">
-                <a href="/enter" className="hover:text-[#D4AF37]">
+                <a href="/shop" className="hover:text-[#D4AF37]">
                   Collection
                 </a>
                 {' · '}

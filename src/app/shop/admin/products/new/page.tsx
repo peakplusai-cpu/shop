@@ -5,6 +5,8 @@ import { createStorefrontProduct } from '@/app/shop/admin/actions';
 import { StorefrontAdminProductForm } from '@/components/storefront-admin-product-form';
 import { isStorefrontAdminAuthenticated } from '@/lib/storefront-admin-session';
 
+export const dynamic = 'force-dynamic';
+
 export default async function NewStorefrontProductPage() {
   if (!(await isStorefrontAdminAuthenticated())) {
     redirect('/shop/admin/login');

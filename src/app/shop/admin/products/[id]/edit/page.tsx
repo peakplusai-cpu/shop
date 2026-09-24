@@ -6,6 +6,8 @@ import { StorefrontAdminProductForm } from '@/components/storefront-admin-produc
 import { isStorefrontAdminAuthenticated } from '@/lib/storefront-admin-session';
 import { createStorefrontAdminClient } from '@/lib/supabase/storefront-admin';
 
+export const dynamic = 'force-dynamic';
+
 type EditPageProps = {
   params: Promise<{ id: string }>;
 };

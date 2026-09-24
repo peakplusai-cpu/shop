@@ -5,10 +5,21 @@ import { cookies } from 'next/headers';
 
 import type { Database } from '@/types/database';
 
+function safeRedirectPath(value: string | null): string {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/shop';
+  try {
+    const parsed = new URL(value, 'https://storefront.invalid');
+    if (parsed.origin !== 'https://storefront.invalid') return '/shop';
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return '/shop';
+  }
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get('code');
-  const next = url.searchParams.get('next') ?? '/shop';
+  const next = safeRedirectPath(url.searchParams.get('next'));
 
   if (!code) {
     return NextResponse.redirect(new URL('/shop/login', request.url));

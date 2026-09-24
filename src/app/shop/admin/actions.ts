@@ -11,8 +11,10 @@ import {
   isStorefrontAdminAuthenticated,
   isStorefrontAdminEnabled,
   verifyStorefrontAdminPassword,
+  verifyStorefrontAdminTotp,
 } from '@/lib/storefront-admin-session';
 import { headers } from 'next/headers';
+import { consumeStorefrontRateLimit } from '@/lib/storefront-rate-limit';
 import { createStorefrontAdminClient } from '@/lib/supabase/storefront-admin';
 
 const productSchema = z.object({
@@ -49,9 +51,27 @@ export async function loginStorefrontAdmin(
     return { error: 'Access denied from this network.' };
   }
 
+  const rateLimit = await consumeStorefrontRateLimit({
+    scope: 'admin-login',
+    identifier: ip,
+    limit: 5,
+    windowSeconds: 15 * 60,
+  });
+  if (!rateLimit.allowed) {
+    return {
+      error: rateLimit.unavailable
+        ? 'Login protection is temporarily unavailable.'
+        : 'Too many sign-in attempts. Try again in 15 minutes.',
+    };
+  }
+
   const password = String(formData.get('password') ?? '');
-  if (!verifyStorefrontAdminPassword(password)) {
-    return { error: 'Incorrect password.' };
+  const totp = String(formData.get('totp') ?? '').trim();
+  if (
+    !verifyStorefrontAdminPassword(password) ||
+    !verifyStorefrontAdminTotp(totp)
+  ) {
+    return { error: 'Invalid password or authentication code.' };
   }
 
   await createStorefrontAdminSession();

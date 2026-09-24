@@ -15,6 +15,16 @@ export type StorefrontProduct =
   Database['public']['Tables']['products']['Row'];
 export type StorefrontOrder =
   Database['public']['Tables']['orders']['Row'];
+export type PublicStorefrontProduct = Pick<
+  StorefrontProduct,
+  | 'id'
+  | 'slug'
+  | 'title'
+  | 'description'
+  | 'price'
+  | 'main_image_url'
+  | 'created_at'
+>;
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -32,6 +42,14 @@ export type StorefrontProductLoadResult =
       preview?: boolean;
     }
   | { status: 'not_found' }
+  | { status: 'setup'; reason: StorefrontSetupReason };
+
+export type StorefrontCatalogLoadResult =
+  | {
+      status: 'ok';
+      products: PublicStorefrontProduct[];
+      preview?: boolean;
+    }
   | { status: 'setup'; reason: StorefrontSetupReason };
 
 function previewProduct(slug: string): StorefrontProductLoadResult {
@@ -106,6 +124,48 @@ export async function loadStorefrontProduct(
 export async function loadDefaultStorefrontProduct(): Promise<StorefrontProductLoadResult> {
   const preferred = getDefaultProductSlug();
   return loadStorefrontProduct(preferred);
+}
+
+export async function loadStorefrontProducts(): Promise<StorefrontCatalogLoadResult> {
+  if (!isStorefrontConfigured()) {
+    if (isStorefrontCommercialMode()) {
+      return { status: 'setup', reason: 'not_configured' };
+    }
+    return {
+      status: 'ok',
+      products: [DEMO_STOREFRONT_PRODUCT],
+      preview: true,
+    };
+  }
+
+  let admin;
+  try {
+    admin = createStorefrontAdminClient();
+  } catch {
+    return isStorefrontCommercialMode()
+      ? { status: 'setup', reason: 'not_configured' }
+      : {
+          status: 'ok',
+          products: [DEMO_STOREFRONT_PRODUCT],
+          preview: true,
+        };
+  }
+
+  const { data, error } = await admin
+    .from('products')
+    .select('id, slug, title, description, price, main_image_url, created_at')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('[storefront] catalog lookup failed:', error.message);
+    return { status: 'setup', reason: setupReasonFromError(error.message) };
+  }
+
+  if (!data?.length) {
+    return { status: 'setup', reason: 'empty_catalog' };
+  }
+
+  return { status: 'ok', products: data };
 }
 
 /** @deprecated Prefer loadStorefrontProduct for setup-aware pages. */
