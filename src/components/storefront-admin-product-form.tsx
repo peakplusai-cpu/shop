@@ -12,6 +12,8 @@ type StorefrontAdminProductFormProps = {
     price: number;
     main_image_url: string;
     creem_product_id: string | null;
+    cj_vid: string | null;
+    cj_logistic_name: string | null;
   };
 };
 
@@ -67,7 +69,22 @@ export function StorefrontAdminProductForm({
         label="Creem product id (prod_…)"
         name="creem_product_id"
         defaultValue={initial?.creem_product_id ?? ''}
-        placeholder="Optional if set in env"
+        placeholder="Required before checkout"
+        required={false}
+      />
+      <Field
+        label="CJ variant id (VID)"
+        name="cj_vid"
+        defaultValue={initial?.cj_vid ?? ''}
+        placeholder="From CJ My Products variant ID"
+        required={false}
+      />
+      <Field
+        label="CJ logistics name"
+        name="cj_logistic_name"
+        defaultValue={initial?.cj_logistic_name ?? ''}
+        placeholder="Or set CJ_DEFAULT_LOGISTIC_NAME"
+        required={false}
       />
       {error && <p className="text-sm text-red-400">{error}</p>}
       <button
@@ -88,6 +105,7 @@ function Field(props: {
   placeholder?: string;
   type?: string;
   step?: string;
+  required?: boolean;
 }) {
   return (
     <label className="block">
@@ -98,7 +116,7 @@ function Field(props: {
         step={props.step}
         defaultValue={props.defaultValue}
         placeholder={props.placeholder}
-        required={props.name !== 'creem_product_id'}
+        required={props.required ?? true}
         className={`${inputClass} mt-2`}
       />
     </label>

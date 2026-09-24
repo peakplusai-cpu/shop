@@ -1,7 +1,12 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
-import { markStorefrontOrderShipped } from '@/app/shop/admin/actions';
+import {
+  markStorefrontOrderShipped,
+  submitStorefrontOrderToCj,
+  syncStorefrontCjOrder,
+} from '@/app/shop/admin/actions';
+import { ConfirmActionButton } from '@/components/confirm-action-button';
 import { isStorefrontAdminAuthenticated } from '@/lib/storefront-admin-session';
 import { createStorefrontAdminClient } from '@/lib/supabase/storefront-admin';
 
@@ -20,7 +25,7 @@ export default async function StorefrontOrdersAdminPage({
   const { data: orders, error } = await createStorefrontAdminClient()
     .from('orders')
     .select(
-      'id, status, product_title, amount_cents, amount_paid_cents, currency, customer_email, tracking_number, created_at, paid_at',
+      'id, status, product_title, amount_cents, amount_paid_cents, currency, customer_email, tracking_number, created_at, paid_at, shipping_email, shipping_customer_name, shipping_phone, shipping_country_code, shipping_country, shipping_province, shipping_city, shipping_county, shipping_address, shipping_address2, shipping_zip, shipping_house_number, cj_vid, cj_logistic_name, cj_fulfillment_order_id, cj_status, cj_tracking_provider, cj_tracking_url, cj_error, cj_sandbox, cj_submission_started_at, cj_last_synced_at',
     )
     .order('created_at', { ascending: false })
     .limit(100);
@@ -73,7 +78,9 @@ export default async function StorefrontOrdersAdminPage({
                   currency: order.currency,
                 })}
                 {' · '}
-                {order.customer_email ?? 'Email unavailable'}
+                {order.shipping_email ??
+                  order.customer_email ??
+                  'Email unavailable'}
               </p>
               {order.amount_paid_cents !== null &&
                 order.amount_paid_cents !== order.amount_cents && (
@@ -91,18 +98,76 @@ export default async function StorefrontOrdersAdminPage({
               {order.tracking_number && (
                 <p className="mt-2 text-xs text-zinc-400">
                   Tracking: {order.tracking_number}
+                  {order.cj_tracking_provider
+                    ? ` · ${order.cj_tracking_provider}`
+                    : ''}
+                </p>
+              )}
+              {order.shipping_customer_name && (
+                <address className="mt-3 text-xs not-italic leading-5 text-zinc-500">
+                  {order.shipping_customer_name} · {order.shipping_phone}
+                  <br />
+                  {[
+                    order.shipping_address,
+                    order.shipping_house_number,
+                    order.shipping_address2,
+                    order.shipping_city,
+                    order.shipping_county,
+                    order.shipping_province,
+                    order.shipping_zip,
+                    order.shipping_country,
+                    order.shipping_country_code,
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}
+                </address>
+              )}
+              {order.cj_fulfillment_order_id && (
+                <p className="mt-2 text-xs text-zinc-500">
+                  CJ: {order.cj_fulfillment_order_id}
+                  {' · '}
+                  {order.cj_status ?? 'submitted'}
+                  {order.cj_sandbox ? ' · SANDBOX' : ''}
+                </p>
+              )}
+              {order.cj_error && (
+                <p className="mt-2 max-w-xl text-xs text-red-400">
+                  CJ: {order.cj_error}
                 </p>
               )}
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center justify-end gap-3">
               <Link
                 href={`/orders/${order.id}/track`}
                 className="border border-zinc-800 px-3 py-2 text-[9px] uppercase tracking-wider text-zinc-400"
               >
                 View
               </Link>
-              {order.status === 'paid' && (
+              {order.status === 'paid' &&
+                !order.cj_fulfillment_order_id &&
+                order.cj_vid &&
+                order.cj_logistic_name && (
+                  <ConfirmActionButton
+                    action={submitStorefrontOrderToCj.bind(null, order.id)}
+                    label="Send to CJ"
+                    confirmText="Create this paid order in CJ? Sandbox mode will not ship real goods."
+                    className="border border-[#D4AF37]/60 px-3 py-2 text-[9px] uppercase tracking-wider text-[#D4AF37]"
+                  />
+                )}
+              {order.cj_fulfillment_order_id && (
+                <form action={syncStorefrontCjOrder.bind(null, order.id)}>
+                  <button
+                    type="submit"
+                    className="border border-zinc-800 px-3 py-2 text-[9px] uppercase tracking-wider text-zinc-400"
+                  >
+                    Sync CJ
+                  </button>
+                </form>
+              )}
+              {order.status === 'paid' &&
+                !order.cj_fulfillment_order_id &&
+                !order.cj_submission_started_at && (
                 <form
                   action={markStorefrontOrderShipped.bind(null, order.id)}
                   className="flex gap-2"

@@ -24,14 +24,31 @@ type TimelineStep = {
   icon: ComponentType<{ className?: string }>;
 };
 
-function timelineForStatus(status: 'pending' | 'paid' | 'shipped'): TimelineStep[] {
+function timelineForStatus(
+  status: 'pending' | 'paid' | 'shipped' | 'delivered',
+  carrier: string | null,
+): TimelineStep[] {
+  if (status === 'delivered') {
+    return [
+      { label: 'Order Confirmed', state: 'complete', icon: Check },
+      { label: 'Processed', state: 'complete', icon: PackageCheck },
+      {
+        label: 'In Transit',
+        detail: carrier || 'Carrier shipment',
+        state: 'complete',
+        icon: Plane,
+      },
+      { label: 'Delivered', state: 'complete', icon: Truck },
+    ];
+  }
+
   if (status === 'shipped') {
     return [
       { label: 'Order Confirmed', state: 'complete', icon: Check },
       { label: 'Processed', state: 'complete', icon: PackageCheck },
       {
         label: 'In Transit to Destination Country',
-        detail: 'USPS Priority Line',
+        detail: carrier || 'Carrier shipment',
         state: 'current',
         icon: Plane,
       },
@@ -66,12 +83,16 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
   const order = await getOrderById(id);
   if (!order) notFound();
 
-  const steps = timelineForStatus(order.status);
+  const steps = timelineForStatus(
+    order.status,
+    order.cj_tracking_provider || order.cj_logistic_name,
+  );
+  const trackingUrl = safeTrackingUrl(order.cj_tracking_url);
   const fulfillmentStartedAt =
     order.shipped_at ?? order.paid_at ?? order.created_at;
   const estimatedDelivery = addBusinessDays(
     new Date(fulfillmentStartedAt),
-    order.status === 'shipped' ? 7 : 10,
+    order.status === 'shipped' || order.status === 'delivered' ? 7 : 10,
   ).toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -115,7 +136,9 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
                 Current status
               </p>
               <p className="mt-2 text-xs uppercase tracking-[0.22em] text-[#D4AF37]">
-                {order.status === 'shipped'
+                {order.status === 'delivered'
+                  ? 'Delivered'
+                  : order.status === 'shipped'
                   ? 'In transit'
                   : order.status === 'paid'
                     ? 'Processing'
@@ -177,7 +200,8 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
             })}
           </ol>
 
-          {order.status === 'shipped' && order.tracking_number && (
+          {(order.status === 'shipped' || order.status === 'delivered') &&
+            order.tracking_number && (
             <div className="mt-10 border-t-[0.5px] border-[#D4AF37]/20 pt-7">
               <p className="text-[9px] uppercase tracking-[0.3em] text-zinc-600">
                 Carrier tracking number
@@ -185,6 +209,16 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
               <p className="mt-2 font-mono text-sm tracking-[0.12em] text-zinc-200">
                 {order.tracking_number}
               </p>
+              {trackingUrl && (
+                <a
+                  href={trackingUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 inline-block text-[10px] uppercase tracking-[0.2em] text-[#D4AF37]"
+                >
+                  Open carrier tracking
+                </a>
+              )}
             </div>
           )}
         </section>
@@ -203,4 +237,14 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
       </div>
     </main>
   );
+}
+
+function safeTrackingUrl(value: string | null): string | null {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
 }

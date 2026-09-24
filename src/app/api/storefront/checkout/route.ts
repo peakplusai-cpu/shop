@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { startStorefrontCheckout } from '@/lib/storefront-checkout';
 import { loadStorefrontProduct } from '@/lib/storefront';
 import { isStorefrontConfigured } from '@/lib/storefront-mode';
+import { storefrontShippingSchema } from '@/lib/storefront-shipping';
 import {
   consumeStorefrontRateLimit,
   readRequestIp,
@@ -13,7 +14,7 @@ export const dynamic = 'force-dynamic';
 
 const bodySchema = z.object({
   slug: z.string().min(1).max(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
-  email: z.string().email().max(320).optional(),
+  shipping: storefrontShippingSchema,
 }).strict();
 
 export async function POST(request: Request) {
@@ -45,14 +46,14 @@ export async function POST(request: Request) {
   }
 
   const contentLength = Number(request.headers.get('content-length') ?? '0');
-  if (Number.isFinite(contentLength) && contentLength > 4096) {
+  if (Number.isFinite(contentLength) && contentLength > 8192) {
     return NextResponse.json({ error: 'Request body too large.' }, { status: 413 });
   }
 
   let json: unknown;
   try {
     const rawBody = await request.text();
-    if (rawBody.length > 4096) {
+    if (rawBody.length > 8192) {
       return NextResponse.json(
         { error: 'Request body too large.' },
         { status: 413 },
@@ -65,7 +66,13 @@ export async function POST(request: Request) {
 
   const parsed = bodySchema.safeParse(json);
   if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid checkout request.' }, { status: 400 });
+    return NextResponse.json(
+      {
+        error:
+          parsed.error.issues[0]?.message ?? 'Invalid checkout request.',
+      },
+      { status: 400 },
+    );
   }
 
   const loaded = await loadStorefrontProduct(parsed.data.slug);
@@ -75,7 +82,7 @@ export async function POST(request: Request) {
 
   const result = await startStorefrontCheckout({
     product: loaded.product,
-    customerEmail: parsed.data.email,
+    shipping: parsed.data.shipping,
   });
 
   if ('error' in result) {

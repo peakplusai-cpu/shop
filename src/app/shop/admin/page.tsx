@@ -28,7 +28,9 @@ export default async function ShopAdminPage({
 
   const { data: products, error } = await createStorefrontAdminClient()
     .from('products')
-    .select('id, slug, title, price, active, created_at')
+    .select(
+      'id, slug, title, price, active, created_at, creem_product_id, cj_vid, cj_logistic_name',
+    )
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -82,6 +84,14 @@ export default async function ShopAdminPage({
               <p className="mt-1 text-xs text-zinc-500">
                 /products/{product.slug} · ${Number(product.price).toFixed(2)}
                 {!product.active && ' · Archived'}
+              </p>
+              <p className="mt-1 text-[10px] text-zinc-700">
+                Creem {product.creem_product_id ? 'ready' : 'missing'} · CJ{' '}
+                {product.cj_vid &&
+                (product.cj_logistic_name ||
+                  process.env.CJ_DEFAULT_LOGISTIC_NAME)
+                  ? 'ready'
+                  : 'missing'}
               </p>
             </div>
             <div className="flex gap-2">

@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS public.products (
   main_image_url   TEXT           NOT NULL,
   creem_link       TEXT           NOT NULL,
   creem_product_id TEXT,
+  cj_vid           TEXT,
+  cj_logistic_name TEXT,
   active           BOOLEAN        NOT NULL DEFAULT TRUE,
   created_at       TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
   CONSTRAINT products_slug_format
@@ -23,7 +25,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   product_id       UUID        NOT NULL
     REFERENCES public.products(id) ON UPDATE CASCADE ON DELETE RESTRICT,
   status           TEXT        NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'paid', 'shipped')),
+    CHECK (status IN ('pending', 'paid', 'shipped', 'delivered')),
   tracking_number  TEXT,
   customer_email   TEXT,
   product_title    TEXT        NOT NULL,
@@ -36,6 +38,33 @@ CREATE TABLE IF NOT EXISTS public.orders (
   creem_checkout_id TEXT,
   creem_order_id   TEXT,
   creem_event_id   TEXT,
+  checkout_idempotency_key UUID,
+  cj_vid           TEXT,
+  cj_logistic_name TEXT,
+  shipping_email   TEXT,
+  shipping_customer_name TEXT,
+  shipping_phone   TEXT,
+  shipping_country_code TEXT CHECK (
+    shipping_country_code IS NULL OR shipping_country_code ~ '^[A-Z]{2}$'
+  ),
+  shipping_country TEXT,
+  shipping_province TEXT,
+  shipping_city    TEXT,
+  shipping_county  TEXT,
+  shipping_address TEXT,
+  shipping_address2 TEXT,
+  shipping_zip     TEXT,
+  shipping_house_number TEXT,
+  cj_fulfillment_order_id TEXT,
+  cj_status        TEXT,
+  cj_tracking_provider TEXT,
+  cj_tracking_url  TEXT,
+  cj_request_id    TEXT,
+  cj_error         TEXT,
+  cj_sandbox       BOOLEAN,
+  cj_submission_started_at TIMESTAMPTZ,
+  cj_submitted_at  TIMESTAMPTZ,
+  cj_last_synced_at TIMESTAMPTZ,
   created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   paid_at          TIMESTAMPTZ,
   shipped_at       TIMESTAMPTZ,
@@ -57,6 +86,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_creem_order_id_unique
 CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_creem_event_id_unique
   ON public.orders (creem_event_id)
   WHERE creem_event_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_cj_fulfillment_order_id_unique
+  ON public.orders (cj_fulfillment_order_id)
+  WHERE cj_fulfillment_order_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_checkout_idempotency_key_unique
+  ON public.orders (checkout_idempotency_key)
+  WHERE checkout_idempotency_key IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_orders_cj_status
+  ON public.orders (cj_status)
+  WHERE cj_fulfillment_order_id IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION public.set_storefront_order_updated_at()
 RETURNS TRIGGER

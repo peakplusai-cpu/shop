@@ -48,6 +48,8 @@ export default async function EditStorefrontProductPage({ params }: EditPageProp
             price: Number(product.price),
             main_image_url: product.main_image_url,
             creem_product_id: product.creem_product_id,
+            cj_vid: product.cj_vid,
+            cj_logistic_name: product.cj_logistic_name,
           }}
         />
       </div>

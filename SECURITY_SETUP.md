@@ -5,7 +5,8 @@ Before enabling real checkout:
 1. Run `supabase/migrations/031_storefront_rate_limits.sql` in the shop
    Supabase SQL Editor, followed by
    `supabase/migrations/032_storefront_rate_limit_fn_fix.sql` and
-   `supabase/migrations/033_storefront_payment_integrity.sql`. Hosted
+   `supabase/migrations/033_storefront_payment_integrity.sql`, then
+   `supabase/migrations/034_cj_fulfillment.sql`. Hosted
    deployments intentionally reject checkout and admin login if the
    distributed limiter is unavailable. Migration 033 must be installed before
    deploying code that creates payment snapshots.

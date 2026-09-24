@@ -90,6 +90,30 @@ runs.
 - Tracking links are capability URLs: anyone with the UUID link can view order
   status and tracking number. Never publish these links.
 
+## CJ Dropshipping fulfillment
+
+- Checkout says fulfillment is not configured: add a CJ `VID` and logistics
+  name to the product, or set `CJ_DEFAULT_LOGISTIC_NAME`.
+- **Send to CJ** is absent: the order must be paid and contain the CJ/address
+  snapshots created by migration 034 and the updated checkout.
+- CJ API is not configured: set `CJ_API_KEY` or `CJ_ACCESS_TOKEN` in the active
+  Vercel environment and redeploy.
+- Authentication failed: revoke exposed/expired credentials, create a new API
+  key or access token, update Vercel, and redeploy.
+- Product or logistics errors: confirm the exact CJ variant ID, destination
+  availability, origin country, and logistics name with CJ freight
+  calculation.
+- Sandbox orders never ship real goods. Keep `CJ_SANDBOX=true` until the
+  complete workflow has been verified.
+- Real fulfillment is intentionally double-locked by `CJ_SANDBOX=false` and
+  `CJ_PRODUCTION_ENABLED=true`.
+- Production orders use `payType=3`; creation does not charge the CJ balance.
+  Review and pay the order in CJ, then use **Sync CJ**.
+- A timeout is reconciled by querying CJ with the local UUID before another
+  create call. Do not manually duplicate the same order in CJ.
+- Migration 034 missing: shipping snapshots, product VID mapping, submission,
+  and tracking synchronization fail.
+
 ## Deployment and domain
 
 - Environment variables are scoped separately to Production, Preview, and

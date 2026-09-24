@@ -12,6 +12,8 @@ export const DEMO_STOREFRONT_PRODUCT: StorefrontProduct = {
     'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=1600&q=80',
   creem_link: 'https://www.creem.io',
   creem_product_id: null,
+  cj_vid: null,
+  cj_logistic_name: null,
   active: true,
   created_at: new Date(0).toISOString(),
 };
