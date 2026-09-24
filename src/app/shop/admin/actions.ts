@@ -4,7 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
-import { isStorefrontAdminIpAllowed, readClientIp } from '@/lib/storefront-admin-cookie';
+import {
+  isStorefrontAdminIpAllowed,
+  readClientIpFromHeaders,
+} from '@/lib/storefront-admin-cookie';
 import {
   clearStorefrontAdminSession,
   createStorefrontAdminSession,
@@ -44,9 +47,7 @@ export async function loginStorefrontAdmin(
   }
 
   const headerStore = await headers();
-  const ip = readClientIp(
-    new Request('http://local', { headers: headerStore }),
-  );
+  const ip = readClientIpFromHeaders(headerStore);
   if (!isStorefrontAdminIpAllowed(ip)) {
     return { error: 'Access denied from this network.' };
   }

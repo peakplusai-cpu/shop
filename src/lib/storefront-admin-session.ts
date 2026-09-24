@@ -10,7 +10,7 @@ import { cookies, headers } from 'next/headers';
 import {
   STOREFRONT_ADMIN_COOKIE,
   isStorefrontAdminIpAllowed,
-  readClientIp,
+  readClientIpFromHeaders,
   verifyStorefrontAdminCookie,
 } from '@/lib/storefront-admin-cookie';
 
@@ -91,7 +91,7 @@ export async function isStorefrontAdminAuthenticated(): Promise<boolean> {
   if (!isStorefrontAdminEnabled()) return false;
 
   const headerStore = await headers();
-  const ip = readClientIp(new Request('http://local', { headers: headerStore }));
+  const ip = readClientIpFromHeaders(headerStore);
   if (!isStorefrontAdminIpAllowed(ip)) return false;
 
   const cookieStore = await cookies();

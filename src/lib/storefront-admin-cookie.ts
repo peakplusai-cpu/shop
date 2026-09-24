@@ -64,17 +64,33 @@ export function isStorefrontAdminIpAllowed(
   return allowed.includes(ip);
 }
 
-export function readClientIp(request: Request): string | null {
-  const vercelForwarded = request.headers.get('x-vercel-forwarded-for');
-  if (vercelForwarded) {
-    return vercelForwarded.split(',')[0]?.trim() || null;
+type HeaderReader = Pick<Headers, 'get'>;
+
+function firstIpFromForwardedHeader(value: string | null): string | null {
+  if (!value) return null;
+  return value.split(',')[0]?.trim() || null;
+}
+
+/** Read client IP from Next.js `headers()` or any Request-like header bag. */
+export function readClientIpFromHeaders(headerStore: HeaderReader): string | null {
+  const candidates = [
+    headerStore.get('x-vercel-forwarded-for'),
+    headerStore.get('x-vercel-ip'),
+    headerStore.get('x-real-ip'),
+    headerStore.get('x-forwarded-for'),
+    headerStore.get('cf-connecting-ip'),
+  ];
+
+  for (const raw of candidates) {
+    const ip = raw?.includes(',')
+      ? firstIpFromForwardedHeader(raw)
+      : raw?.trim();
+    if (ip) return ip;
   }
 
-  const realIp = request.headers.get('x-real-ip')?.trim();
-  if (realIp) return realIp;
+  return null;
+}
 
-  // Generic trusted reverse proxies append their observed peer to the right.
-  // Deployments must strip client-supplied forwarding headers at the edge.
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',').at(-1)?.trim() || null;
+export function readClientIp(request: Request): string | null {
+  return readClientIpFromHeaders(request.headers);
 }

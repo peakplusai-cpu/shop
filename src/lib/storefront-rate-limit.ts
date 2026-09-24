@@ -2,6 +2,7 @@ import 'server-only';
 
 import { createHash } from 'node:crypto';
 
+import { readClientIpFromHeaders } from '@/lib/storefront-admin-cookie';
 import { createStorefrontAdminClient } from '@/lib/supabase/storefront-admin';
 
 type RateLimitResult =
@@ -13,16 +14,7 @@ function isProductionRuntime(): boolean {
 }
 
 export function readRequestIp(request: Request): string | null {
-  const vercelForwarded = request.headers.get('x-vercel-forwarded-for');
-  if (vercelForwarded) {
-    return vercelForwarded.split(',')[0]?.trim() || null;
-  }
-
-  const realIp = request.headers.get('x-real-ip')?.trim();
-  if (realIp) return realIp;
-
-  const forwarded = request.headers.get('x-forwarded-for');
-  return forwarded?.split(',').at(-1)?.trim() || null;
+  return readClientIpFromHeaders(request.headers);
 }
 
 function anonymize(value: string): string {
@@ -60,9 +52,17 @@ export async function consumeStorefrontRateLimit(input: {
       ? { allowed: true }
       : { allowed: false, retryAfterSeconds: input.windowSeconds };
   } catch (error) {
+    const detail =
+      error && typeof error === 'object' && 'message' in error
+        ? String(error.message)
+        : 'Unknown error';
+    const code =
+      error && typeof error === 'object' && 'code' in error
+        ? String(error.code)
+        : '';
     console.error(
       '[storefront/rate-limit] check failed:',
-      error instanceof Error ? error.message : 'Unknown error',
+      code ? `${code}: ${detail}` : detail,
     );
 
     // Local previews remain usable before migrations are installed. Hosted
