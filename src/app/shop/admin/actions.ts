@@ -1,5 +1,7 @@
 'use server';
 
+import { createHash } from 'node:crypto';
+
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
@@ -52,13 +54,31 @@ export async function loginStorefrontAdmin(
     return { error: 'Access denied from this network.' };
   }
 
+  let rateLimitIdentifier = ip;
+  if (!rateLimitIdentifier && process.env.VERCEL) {
+    const userAgent = headerStore.get('user-agent') ?? 'unknown';
+    rateLimitIdentifier = `ua:${createHash('sha256').update(userAgent).digest('hex').slice(0, 24)}`;
+  }
+
   const rateLimit = await consumeStorefrontRateLimit({
     scope: 'admin-login',
-    identifier: ip,
+    identifier: rateLimitIdentifier,
     limit: 5,
     windowSeconds: 15 * 60,
   });
   if (!rateLimit.allowed) {
+    if (rateLimit.reason === 'missing_config') {
+      return {
+        error:
+          'Vercel is missing STOREFONT_SUPABASE_URL or STOREFONT_SUPABASE_SERVICE_ROLE_KEY.',
+      };
+    }
+    if (rateLimit.reason === 'rpc_error') {
+      return {
+        error:
+          'Rate limit could not reach Supabase. Run migrations 031 and 032, then redeploy.',
+      };
+    }
     return {
       error: rateLimit.unavailable
         ? 'Login protection is temporarily unavailable.'

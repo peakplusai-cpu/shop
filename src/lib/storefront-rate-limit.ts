@@ -3,11 +3,22 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 
 import { readClientIpFromHeaders } from '@/lib/storefront-admin-cookie';
+import { isStorefrontConfigured } from '@/lib/storefront-mode';
 import { createStorefrontAdminClient } from '@/lib/supabase/storefront-admin';
+
+export type StorefrontRateLimitFailureReason =
+  | 'missing_identifier'
+  | 'missing_config'
+  | 'rpc_error';
 
 type RateLimitResult =
   | { allowed: true }
-  | { allowed: false; retryAfterSeconds: number; unavailable?: boolean };
+  | {
+      allowed: false;
+      retryAfterSeconds: number;
+      unavailable?: boolean;
+      reason?: StorefrontRateLimitFailureReason;
+    };
 
 function isProductionRuntime(): boolean {
   return process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL_ENV);
@@ -35,9 +46,19 @@ export async function consumeStorefrontRateLimit(input: {
       allowed: false,
       retryAfterSeconds: 60,
       unavailable: true,
+      reason: 'missing_identifier',
     };
   }
   const key = `${input.scope}:${anonymize(identifier)}`;
+
+  if (!isStorefrontConfigured()) {
+    return {
+      allowed: false,
+      retryAfterSeconds: 60,
+      unavailable: true,
+      reason: 'missing_config',
+    };
+  }
 
   try {
     const admin = createStorefrontAdminClient();
@@ -73,6 +94,7 @@ export async function consumeStorefrontRateLimit(input: {
       allowed: false,
       retryAfterSeconds: 60,
       unavailable: true,
+      reason: 'rpc_error',
     };
   }
 }

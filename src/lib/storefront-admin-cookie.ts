@@ -1,3 +1,4 @@
+import { ipAddress } from '@vercel/functions';
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 export const STOREFRONT_ADMIN_COOKIE = 'storefront_admin_session';
@@ -73,6 +74,11 @@ function firstIpFromForwardedHeader(value: string | null): string | null {
 
 /** Read client IP from Next.js `headers()` or any Request-like header bag. */
 export function readClientIpFromHeaders(headerStore: HeaderReader): string | null {
+  if (process.env.VERCEL) {
+    const vercelIp = ipAddress(headerStore);
+    if (vercelIp) return vercelIp;
+  }
+
   const candidates = [
     headerStore.get('x-vercel-forwarded-for'),
     headerStore.get('x-vercel-ip'),
