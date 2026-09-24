@@ -2,14 +2,13 @@ import 'server-only';
 
 import {
   createStorefrontCreemCheckout,
-  getStorefrontCreemProductId,
   getStorefrontPublicOrigin,
 } from '@/lib/storefront-creem';
 import { createStorefrontAdminClient } from '@/lib/supabase/storefront-admin';
 import type { StorefrontProduct } from '@/lib/storefront';
 
 function resolveCreemProductId(product: StorefrontProduct): string | null {
-  return product.creem_product_id?.trim() || getStorefrontCreemProductId();
+  return product.creem_product_id?.trim() || null;
 }
 
 export async function startStorefrontCheckout(input: {
@@ -20,7 +19,7 @@ export async function startStorefrontCheckout(input: {
   if (!creemProductId) {
     return {
       error:
-        'Set creem_product_id on the product row or STOREFRONT_CREEM_PRODUCT_ID in env.',
+        'Set a Creem product ID on this product before enabling checkout.',
       status: 503,
     };
   }
@@ -32,6 +31,10 @@ export async function startStorefrontCheckout(input: {
       product_id: input.product.id,
       status: 'pending',
       customer_email: input.customerEmail?.trim().toLowerCase() || null,
+      product_title: input.product.title,
+      amount_cents: Math.round(Number(input.product.price) * 100),
+      currency: 'USD',
+      creem_product_id: creemProductId,
     })
     .select('id')
     .single();
@@ -41,7 +44,16 @@ export async function startStorefrontCheckout(input: {
     return { error: 'Could not create order.', status: 500 };
   }
 
-  const origin = getStorefrontPublicOrigin();
+  let origin: string;
+  try {
+    origin = getStorefrontPublicOrigin();
+  } catch (error) {
+    console.error(
+      '[storefront/checkout] invalid public origin:',
+      error instanceof Error ? error.message : 'Unknown error',
+    );
+    return { error: 'Storefront URL is not configured correctly.', status: 503 };
+  }
   const successUrl = `${origin}/orders/${order.id}/track`;
   const checkout = await createStorefrontCreemCheckout({
     creemProductId,
@@ -51,11 +63,26 @@ export async function startStorefrontCheckout(input: {
   });
 
   if (!checkout.url) {
-    await admin.from('orders').delete().eq('id', order.id);
+    // Keep the pending order: Creem may have accepted the checkout even when
+    // its response was interrupted. A later signed webhook must still be able
+    // to reconcile this order.
     return {
       error: checkout.error ?? 'Creem checkout failed.',
       status: 502,
     };
+  }
+
+  if (checkout.checkoutId) {
+    const { error: checkoutIdError } = await admin
+      .from('orders')
+      .update({ creem_checkout_id: checkout.checkoutId })
+      .eq('id', order.id);
+    if (checkoutIdError) {
+      console.error(
+        '[storefront/checkout] checkout id persistence failed:',
+        checkoutIdError.message,
+      );
+    }
   }
 
   return { url: checkout.url };

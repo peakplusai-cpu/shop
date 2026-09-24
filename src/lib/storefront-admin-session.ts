@@ -29,6 +29,16 @@ function getStorefrontAdminTotpSecret(): string | null {
   return process.env.STOREFRONT_ADMIN_TOTP_SECRET?.trim() || null;
 }
 
+function hasSecureStorefrontAdminSessionSecret(): boolean {
+  const secret = sessionSecret();
+  return Boolean(
+    secret &&
+      secret.length >= 32 &&
+      secret !== getStorefrontAdminPassword() &&
+      secret !== getStorefrontAdminTotpSecret(),
+  );
+}
+
 function hasSecureStorefrontAdminTotpSecret(): boolean {
   const normalized = getStorefrontAdminTotpSecret()
     ?.toUpperCase()
@@ -51,7 +61,7 @@ export function isStorefrontAdminEnabled(): boolean {
     Boolean(password) && (!isStorefrontAdminMfaRequired() || password!.length >= 16);
   return Boolean(
     hasStrongPassword &&
-      sessionSecret() &&
+      hasSecureStorefrontAdminSessionSecret() &&
       (!isStorefrontAdminMfaRequired() ||
         hasSecureStorefrontAdminTotpSecret()),
   );
@@ -73,6 +83,7 @@ export async function createStorefrontAdminSession(): Promise<void> {
     sameSite: 'lax',
     path: '/shop/admin',
     maxAge: MAX_AGE_SECONDS,
+    priority: 'high',
   });
 }
 
@@ -84,6 +95,7 @@ export async function clearStorefrontAdminSession(): Promise<void> {
     sameSite: 'lax',
     path: '/shop/admin',
     maxAge: 0,
+    priority: 'high',
   });
 }
 

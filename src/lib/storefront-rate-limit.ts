@@ -32,6 +32,10 @@ function anonymize(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
+function rateLimitKey(scope: 'admin-login' | 'checkout', identifier: string) {
+  return `${scope}:${anonymize(identifier)}`;
+}
+
 export async function consumeStorefrontRateLimit(input: {
   scope: 'admin-login' | 'checkout';
   identifier: string | null;
@@ -49,7 +53,7 @@ export async function consumeStorefrontRateLimit(input: {
       reason: 'missing_identifier',
     };
   }
-  const key = `${input.scope}:${anonymize(identifier)}`;
+  const key = rateLimitKey(input.scope, identifier);
 
   if (!isStorefrontConfigured()) {
     return {
@@ -69,6 +73,23 @@ export async function consumeStorefrontRateLimit(input: {
     });
 
     if (error) throw error;
+
+    // Amortized retention cleanup prevents one permanent row per historic IP.
+    const keyHash = key.slice(key.lastIndexOf(':') + 1);
+    if (Number.parseInt(keyHash.slice(0, 2), 16) === 0) {
+      const cutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { error: cleanupError } = await admin
+        .from('storefront_rate_limits')
+        .delete()
+        .lt('window_started_at', cutoff);
+      if (cleanupError) {
+        console.error(
+          '[storefront/rate-limit] cleanup failed:',
+          cleanupError.message,
+        );
+      }
+    }
+
     return data
       ? { allowed: true }
       : { allowed: false, retryAfterSeconds: input.windowSeconds };
@@ -96,5 +117,22 @@ export async function consumeStorefrontRateLimit(input: {
       unavailable: true,
       reason: 'rpc_error',
     };
+  }
+}
+
+export async function resetStorefrontRateLimit(input: {
+  scope: 'admin-login' | 'checkout';
+  identifier: string | null;
+}): Promise<void> {
+  const identifier = input.identifier?.trim();
+  if (!identifier || !isStorefrontConfigured()) return;
+
+  const admin = createStorefrontAdminClient();
+  const { error } = await admin
+    .from('storefront_rate_limits')
+    .delete()
+    .eq('key', rateLimitKey(input.scope, identifier));
+  if (error) {
+    console.error('[storefront/rate-limit] reset failed:', error.message);
   }
 }

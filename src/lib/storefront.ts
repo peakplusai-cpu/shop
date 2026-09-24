@@ -105,6 +105,7 @@ export async function loadStorefrontProduct(
     .from('products')
     .select('*')
     .eq('slug', slug)
+    .eq('active', true)
     .maybeSingle();
 
   if (error) {
@@ -114,7 +115,7 @@ export async function loadStorefrontProduct(
 
   if (!data) {
     return isStorefrontCommercialMode()
-      ? { status: 'setup', reason: 'empty_catalog' }
+      ? { status: 'not_found' }
       : previewProduct(slug);
   }
 
@@ -154,6 +155,7 @@ export async function loadStorefrontProducts(): Promise<StorefrontCatalogLoadRes
   const { data, error } = await admin
     .from('products')
     .select('id, slug, title, description, price, main_image_url, created_at')
+    .eq('active', true)
     .order('created_at', { ascending: false });
 
   if (error) {

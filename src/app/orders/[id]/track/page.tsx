@@ -67,15 +67,17 @@ export default async function TrackingPage({ params }: TrackingPageProps) {
   if (!order) notFound();
 
   const steps = timelineForStatus(order.status);
-  const estimatedDelivery = addBusinessDays(new Date(), 7).toLocaleDateString(
-    'en-US',
-    {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric',
-    },
-  );
+  const fulfillmentStartedAt =
+    order.shipped_at ?? order.paid_at ?? order.created_at;
+  const estimatedDelivery = addBusinessDays(
+    new Date(fulfillmentStartedAt),
+    order.status === 'shipped' ? 7 : 10,
+  ).toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-black px-5 py-12 text-zinc-50 sm:px-8 sm:py-20">

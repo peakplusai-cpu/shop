@@ -76,12 +76,6 @@ export function StorefrontCatalog({
             >
               Collection
             </a>
-            <Link
-              href="/shop/login"
-              className="text-[10px] uppercase tracking-[0.24em] text-zinc-400 transition hover:text-[#D4AF37]"
-            >
-              Sign in
-            </Link>
             <ShoppingBag
               aria-label="Shopping bag"
               className="h-4 w-4 text-[#D4AF37]"

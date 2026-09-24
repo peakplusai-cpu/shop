@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
+import { createHmac, timingSafeEqual } from 'crypto';
 
 import { getCreemApiBase, getCreemApiKey, getCreemWebhookSecret } from '@/lib/creem';
 import { getAppOrigin } from '@/lib/env';
@@ -13,10 +13,6 @@ export function getStorefrontCreemApiKey(): string | null {
   );
 }
 
-export function getStorefrontCreemProductId(): string | null {
-  return process.env.STOREFRONT_CREEM_PRODUCT_ID?.trim() || null;
-}
-
 export function getStorefrontCreemWebhookSecret(): string | null {
   return (
     process.env.STOREFRONT_CREEM_WEBHOOK_SECRET?.trim() ||
@@ -26,11 +22,19 @@ export function getStorefrontCreemWebhookSecret(): string | null {
 }
 
 export function getStorefrontPublicOrigin(): string {
-  return (
+  const configured = (
     process.env.NEXT_PUBLIC_STOREFRONT_URL?.trim() ||
     process.env.NEXT_PUBLIC_APP_URL?.trim() ||
     getAppOrigin()
   ).replace(/\/$/, '');
+  const url = new URL(configured);
+  if (
+    process.env.NODE_ENV === 'production' &&
+    url.protocol !== 'https:'
+  ) {
+    throw new Error('NEXT_PUBLIC_STOREFRONT_URL must use HTTPS in production.');
+  }
+  return url.origin;
 }
 
 export function verifyStorefrontCreemSignature(
@@ -56,7 +60,7 @@ export async function createStorefrontCreemCheckout(input: {
   orderId: string;
   successUrl: string;
   customerEmail?: string;
-}): Promise<{ url: string | null; error?: string }> {
+}): Promise<{ url: string | null; checkoutId?: string; error?: string }> {
   const apiKey = getStorefrontCreemApiKey();
   if (!apiKey) {
     return {
@@ -65,29 +69,45 @@ export async function createStorefrontCreemCheckout(input: {
     };
   }
 
-  const response = await fetch(`${getCreemApiBase()}/v1/checkouts`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-    },
-    body: JSON.stringify({
-      product_id: input.creemProductId,
-      request_id: randomUUID(),
-      customer: input.customerEmail
-        ? { email: input.customerEmail }
-        : undefined,
-      success_url: input.successUrl,
-      metadata: {
-        order_id: input.orderId,
-        storefront: 'true',
+  let response: Response;
+  try {
+    response = await fetch(`${getCreemApiBase()}/v1/checkouts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
       },
-    }),
-    cache: 'no-store',
-  });
+      body: JSON.stringify({
+        product_id: input.creemProductId,
+        request_id: input.orderId,
+        customer: input.customerEmail
+          ? { email: input.customerEmail }
+          : undefined,
+        success_url: input.successUrl,
+        metadata: {
+          order_id: input.orderId,
+          storefront: 'true',
+        },
+      }),
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error && error.name === 'TimeoutError'
+        ? 'Creem API timed out.'
+        : 'Creem API is unreachable.';
+    console.error('[storefront/checkout] Creem request failed:', message);
+    return { url: null, error: message };
+  }
 
   const json = (await response.json().catch(() => null)) as
-    | { checkout_url?: string; message?: string; error?: string }
+    | {
+        id?: string;
+        checkout_url?: string;
+        message?: string;
+        error?: string;
+      }
     | null;
 
   if (!response.ok || !json?.checkout_url) {
@@ -99,5 +119,5 @@ export async function createStorefrontCreemCheckout(input: {
     return { url: null, error };
   }
 
-  return { url: json.checkout_url };
+  return { url: json.checkout_url, checkoutId: json.id };
 }

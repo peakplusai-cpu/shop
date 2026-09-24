@@ -11,6 +11,7 @@ export interface Database {
           main_image_url: string;
           creem_link: string;
           creem_product_id: string | null;
+          active: boolean;
           created_at: string;
         };
         Insert: {
@@ -22,6 +23,7 @@ export interface Database {
           main_image_url: string;
           creem_link: string;
           creem_product_id?: string | null;
+          active?: boolean;
           created_at?: string;
         };
         Update: {
@@ -33,6 +35,7 @@ export interface Database {
           main_image_url?: string;
           creem_link?: string;
           creem_product_id?: string | null;
+          active?: boolean;
           created_at?: string;
         };
         Relationships: [];
@@ -44,6 +47,17 @@ export interface Database {
           status: 'pending' | 'paid' | 'shipped';
           tracking_number: string | null;
           customer_email: string | null;
+          product_title: string;
+          amount_cents: number;
+          amount_paid_cents: number | null;
+          currency: string;
+          creem_product_id: string | null;
+          creem_checkout_id: string | null;
+          creem_order_id: string | null;
+          creem_event_id: string | null;
+          created_at: string;
+          paid_at: string | null;
+          shipped_at: string | null;
           updated_at: string;
         };
         Insert: {
@@ -52,6 +66,17 @@ export interface Database {
           status?: 'pending' | 'paid' | 'shipped';
           tracking_number?: string | null;
           customer_email?: string | null;
+          product_title: string;
+          amount_cents: number;
+          amount_paid_cents?: number | null;
+          currency: string;
+          creem_product_id?: string | null;
+          creem_checkout_id?: string | null;
+          creem_order_id?: string | null;
+          creem_event_id?: string | null;
+          created_at?: string;
+          paid_at?: string | null;
+          shipped_at?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -60,6 +85,17 @@ export interface Database {
           status?: 'pending' | 'paid' | 'shipped';
           tracking_number?: string | null;
           customer_email?: string | null;
+          product_title?: string;
+          amount_cents?: number;
+          amount_paid_cents?: number | null;
+          currency?: string;
+          creem_product_id?: string | null;
+          creem_checkout_id?: string | null;
+          creem_order_id?: string | null;
+          creem_event_id?: string | null;
+          created_at?: string;
+          paid_at?: string | null;
+          shipped_at?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -71,6 +107,24 @@ export interface Database {
             referencedColumns: ['id'];
           },
         ];
+      };
+      storefront_rate_limits: {
+        Row: {
+          key: string;
+          window_started_at: string;
+          request_count: number;
+        };
+        Insert: {
+          key: string;
+          window_started_at?: string;
+          request_count?: number;
+        };
+        Update: {
+          key?: string;
+          window_started_at?: string;
+          request_count?: number;
+        };
+        Relationships: [];
       };
     };
     Views: Record<string, never>;

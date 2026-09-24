@@ -45,6 +45,12 @@ export async function GET(request: Request) {
     },
   });
 
-  await supabase.auth.exchangeCodeForSession(code);
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  if (error) {
+    console.error('[storefront/auth] code exchange failed:', error.message);
+    const login = new URL('/shop/login', request.url);
+    login.searchParams.set('error', 'oauth_callback_failed');
+    return NextResponse.redirect(login);
+  }
   return NextResponse.redirect(new URL(next, request.url));
 }

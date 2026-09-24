@@ -75,12 +75,14 @@ function firstIpFromForwardedHeader(value: string | null): string | null {
 
 /** Read client IP from Next.js `headers()` or any Request-like header bag. */
 export function readClientIpFromHeaders(headerStore: HeaderReader): string | null {
+  if (process.env.VERCEL) {
+    return headerStore.get('x-real-ip')?.trim() || null;
+  }
+
   const candidates = [
-    headerStore.get('x-vercel-forwarded-for'),
-    headerStore.get('x-vercel-ip'),
+    headerStore.get('cf-connecting-ip'),
     headerStore.get('x-real-ip'),
     headerStore.get('x-forwarded-for'),
-    headerStore.get('cf-connecting-ip'),
   ];
 
   for (const raw of candidates) {

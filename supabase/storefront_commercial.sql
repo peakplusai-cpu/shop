@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.products (
   main_image_url   TEXT           NOT NULL,
   creem_link       TEXT           NOT NULL,
   creem_product_id TEXT,
+  active           BOOLEAN        NOT NULL DEFAULT TRUE,
   created_at       TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
   CONSTRAINT products_slug_format
     CHECK (slug = LOWER(slug) AND slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'),
@@ -25,11 +26,37 @@ CREATE TABLE IF NOT EXISTS public.orders (
     CHECK (status IN ('pending', 'paid', 'shipped')),
   tracking_number  TEXT,
   customer_email   TEXT,
+  product_title    TEXT        NOT NULL,
+  amount_cents     BIGINT      NOT NULL CHECK (amount_cents >= 0),
+  amount_paid_cents BIGINT     CHECK (
+    amount_paid_cents IS NULL OR amount_paid_cents >= 0
+  ),
+  currency         TEXT        NOT NULL CHECK (currency ~ '^[A-Z]{3}$'),
+  creem_product_id TEXT,
+  creem_checkout_id TEXT,
+  creem_order_id   TEXT,
+  creem_event_id   TEXT,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  paid_at          TIMESTAMPTZ,
+  shipped_at       TIMESTAMPTZ,
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_orders_product_id ON public.orders (product_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status ON public.orders (status);
+CREATE INDEX IF NOT EXISTS idx_products_active_created_at
+  ON public.products (active, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_created_at
+  ON public.orders (created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_creem_checkout_id_unique
+  ON public.orders (creem_checkout_id)
+  WHERE creem_checkout_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_creem_order_id_unique
+  ON public.orders (creem_order_id)
+  WHERE creem_order_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_creem_event_id_unique
+  ON public.orders (creem_event_id)
+  WHERE creem_event_id IS NOT NULL;
 
 CREATE OR REPLACE FUNCTION public.set_storefront_order_updated_at()
 RETURNS TRIGGER
@@ -82,7 +109,7 @@ SET search_path = public
 AS $$
 DECLARE
   accepted_count INTEGER;
-  current_time TIMESTAMPTZ := clock_timestamp();
+  window_now TIMESTAMPTZ := clock_timestamp();
 BEGIN
   IF p_key IS NULL OR LENGTH(p_key) > 200
      OR p_limit < 1 OR p_limit > 10000
@@ -95,24 +122,24 @@ BEGIN
     window_started_at,
     request_count
   )
-  VALUES (p_key, current_time, 1)
+  VALUES (p_key, window_now, 1)
   ON CONFLICT (key) DO UPDATE
   SET
     window_started_at = CASE
       WHEN limits.window_started_at
-        <= current_time - make_interval(secs => p_window_seconds)
-      THEN current_time
+        <= window_now - make_interval(secs => p_window_seconds)
+      THEN window_now
       ELSE limits.window_started_at
     END,
     request_count = CASE
       WHEN limits.window_started_at
-        <= current_time - make_interval(secs => p_window_seconds)
+        <= window_now - make_interval(secs => p_window_seconds)
       THEN 1
       ELSE limits.request_count + 1
     END
   WHERE
     limits.window_started_at
-      <= current_time - make_interval(secs => p_window_seconds)
+      <= window_now - make_interval(secs => p_window_seconds)
     OR limits.request_count < p_limit
   RETURNING request_count INTO accepted_count;
 

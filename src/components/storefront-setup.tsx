@@ -21,14 +21,14 @@ const COPY: Record<
     lines: [
       '1. 新建「只給商店用」的 Supabase 專案，執行 supabase/storefront_commercial.sql',
       '2. .env.local 填入 STOREFRONT_SUPABASE_URL、STOREFRONT_SUPABASE_SERVICE_ROLE_KEY',
-      '3. 填入 STOREFRONT_CREEM_PRODUCT_ID、CREEM_API_KEY（或 STOREFRONT_CREEM_API_KEY）',
+      '3. 填入 CREEM_API_KEY（或 STOREFRONT_CREEM_API_KEY），並在每個商品設定 creem_product_id',
       '4. 重啟 npm run dev，本地商用測試加 STOREFRONT_COMMERCIAL=true',
     ],
   },
   empty_catalog: {
     title: '尚無上架商品',
     lines: [
-      '在 products 表確認有商品，並設定 creem_product_id 或 env STOREFRONT_CREEM_PRODUCT_ID。',
+      '在 products 表確認至少有一個啟用商品，並為每個商品設定 creem_product_id。',
     ],
   },
 };

@@ -88,10 +88,6 @@ export function ProductLanding({ product, preview }: ProductLandingProps) {
                 <a href="/shop" className="hover:text-[#D4AF37]">
                   Collection
                 </a>
-                {' · '}
-                <a href="/shop/login" className="hover:text-[#D4AF37]">
-                  Sign in
-                </a>
               </p>
             )}
           </FadeIn>
